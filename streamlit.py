@@ -2,6 +2,7 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 import duckdb
+import re
 
 # Charger les datasets dans DuckDB (en mémoire)
 @st.cache_resource
