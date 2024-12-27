@@ -1,22 +1,29 @@
 import streamlit as st
-import duckdb
+import sqlite3
 import pandas as pd
 import re
 
-# Charger les datasets
-path = "/mnt/data/"  # Remplace par ton chemin local si nécessaire
-datasets = {
-    "users": pd.read_csv(f"{path}users.csv"),
-    "money": pd.read_csv(f"{path}money.csv"),
-    "cyberops": pd.read_csv(f"{path}cyberops.csv"),
-}
+# Charger les datasets dans SQLite (en mémoire)
+@st.cache_resource
+def load_database():
+    conn = sqlite3.connect(":memory:")  # Base SQLite en mémoire
+    datasets = {
+        "users": pd.read_csv("users.csv"),
+        "money": pd.read_csv("money.csv"),
+        "cyberops": pd.read_csv("cyberops.csv"),
+    }
+    for name, df in datasets.items():
+        df.to_sql(name, conn, index=False, if_exists="replace")
+    return conn
+
+conn = load_database()
 
 # Fonction pour valider les requêtes selon le niveau
 def validate_query(level, query):
     filters = {
         1: [],  # Pas de filtres
         2: [r'--', r';', r"'"],  # Bloque les commentaires et les guillemets simples
-        3: [r'SELECT', r'FROM', r'DROP'],  # Bloque les mots-clés basiques
+        3: [r'DROP', r'INSERT', r'UPDATE'],  # Bloque les commandes destructrices
         4: [r'0x', r'FROM_BASE64'],  # Bloque les obfuscations hexadécimales et base64
         5: [r'.*'],  # Protection maximale
     }
@@ -24,15 +31,6 @@ def validate_query(level, query):
         if re.search(pattern, query, re.IGNORECASE):
             return False
     return True
-
-# Fonction pour exécuter les requêtes
-def execute_query(query, dataset_name):
-    try:
-        dataset = datasets[dataset_name]
-        query_result = duckdb.query(query).to_df()
-        return query_result
-    except Exception as e:
-        return f"Erreur dans la requête : {e}"
 
 # Créer une barre latérale pour naviguer entre les niveaux
 st.sidebar.title("SQL Injection Challenge")
@@ -71,30 +69,17 @@ if st.button("Soumettre la requête"):
         if not validate_query(level, query):
             st.error("Requête bloquée par les filtres de ce niveau.")
         else:
-            # Détecter le dataset ciblé dans la requête
-            if "users" in query.lower():
-                dataset_name = "users"
-            elif "money" in query.lower():
-                dataset_name = "money"
-            elif "cyberops" in query.lower():
-                dataset_name = "cyberops"
-            else:
-                st.error("Aucun dataset valide trouvé dans la requête.")
-                dataset_name = None
-
-            if dataset_name:
-                # Exécuter la requête et afficher les résultats
-                result = execute_query(query, dataset_name)
-                if isinstance(result, str):
-                    st.error(result)
+            try:
+                # Exécuter la requête SQL sur la base SQLite
+                result = pd.read_sql_query(query, conn)
+                if result.empty:
+                    st.warning("Aucun résultat trouvé.")
                 else:
-                    if result.empty:
-                        st.warning("Aucun résultat trouvé.")
-                    else:
-                        st.success("Requête exécutée avec succès.")
-                        st.write(result)
+                    st.success("Requête exécutée avec succès.")
+                    st.write(result)
+            except Exception as e:
+                st.error(f"Erreur lors de l'exécution de la requête : {e}")
 
 # Pour le niveau 5, afficher un indice sur les flags
 if level == 5:
     st.write("Indice : Les morceaux du flag sont dans la table 'cyberops'.")
-
