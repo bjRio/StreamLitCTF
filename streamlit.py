@@ -86,7 +86,7 @@ if st.button("Soumettre la requête"):
                     st.success("Requête exécutée avec succès.")
                     st.write(result)
                     # Si la requête est réussie pour le niveau actuel, débloquer le niveau suivant
-                    if level < 5 and level not in st.session_state.unlocked_levels:
+                    if level < 5 :
                         st.session_state.unlocked_levels[level + 1] = True
             except Exception as e:
                 st.error(f"Erreur lors de l'exécution de la requête : {e}")
