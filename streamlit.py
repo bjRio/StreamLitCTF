@@ -87,10 +87,17 @@ if st.button("Soumettre la requête"):
                     st.success("Requête exécutée avec succès.")
                     st.write(result)
                     # Si la requête est réussie pour le niveau actuel, débloquer le niveau suivant
-                    if level < 5 :
+                    if level < 5:
                         st.session_state.unlocked_levels[level + 1] = True
+                        # Ajouter un bouton "virtuel" qui déclenche une actualisation de la page
+                        st.session_state["refresh"] = True  # Marque le besoin de rafraîchissement
             except Exception as e:
                 st.error(f"Erreur lors de l'exécution de la requête : {e}")
+
+# Simuler l'actualisation de la page si un nouveau niveau est débloqué
+if "refresh" in st.session_state and st.session_state["refresh"]:
+    st.session_state["refresh"] = False
+    st.experimental_rerun()  # Force l'actualisation de la page
 
 # Pour le niveau 5, afficher un indice sur les flags
 if level == 5:
