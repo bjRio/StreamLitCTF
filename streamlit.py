@@ -3,6 +3,10 @@ import duckdb
 import pandas as pd
 import re
 
+# Initialisation des niveaux réussis dans la session
+if "level_passed" not in st.session_state:
+    st.session_state.level_passed = 0  # Aucun niveau n'est réussi au début
+
 # Charger les datasets dans DuckDB (en mémoire)
 @st.cache_resource
 def load_database():
@@ -44,10 +48,17 @@ options = {
     "Niveau 4": 4,
     "Niveau 5": 5
 }
-choice = st.sidebar.radio("Choisissez un niveau", list(options.keys()))
+
+# Vérification des niveaux débloqués
+available_levels = [level for level in options.values() if level <= st.session_state.level_passed + 1]
+
+# Empêcher l'accès aux niveaux non débloqués
+choice = st.sidebar.radio("Choisissez un niveau", list(options.keys()), index=available_levels[0] - 1)
+
+# Déterminer le niveau basé sur la sélection
+level = options[choice]
 
 # Afficher le contenu en fonction du niveau choisi
-level = options[choice]
 st.title(f"SQL Injection Challenge - {choice}")
 
 if level == 1:
@@ -80,6 +91,9 @@ if st.button("Soumettre la requête"):
                 else:
                     st.success("Requête exécutée avec succès.")
                     st.write(result)
+                    # Débloquer le niveau suivant après avoir réussi le niveau actuel
+                    if level > st.session_state.level_passed:
+                        st.session_state.level_passed = level
             except Exception as e:
                 st.error(f"Erreur lors de l'exécution de la requête : {e}")
 
