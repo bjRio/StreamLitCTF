@@ -1,4 +1,4 @@
+streamlit
 pandas
 re
-streamlit
 sqlite3
