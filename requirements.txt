@@ -2,3 +2,4 @@ duckdb
 pandas
 re
 streamlit
+sqlite3
