@@ -1,26 +1,19 @@
 import streamlit as st
-import duckdb
+import sqlite3
 import pandas as pd
-import re
-
-# Initialisation des niveaux réussis dans la session
-if "level_passed" not in st.session_state:
-    st.session_state.level_passed = 0  # Aucun niveau n'est réussi au début
+import duckdb
 
 # Charger les datasets dans DuckDB (en mémoire)
 @st.cache_resource
 def load_database():
-    conn = duckdb.connect(database=":memory:")  # Base DuckDB en mémoire
+    conn = duckdb.connect(":memory:")  # Base DuckDB en mémoire
     datasets = {
-        "users": "users.csv",
-        "money": "money.csv",
-        "cyberops": "cyberops.csv",
+        "users": pd.read_csv("users.csv"),
+        "money": pd.read_csv("money.csv"),
+        "cyberops": pd.read_csv("cyberops.csv"),
     }
-    for name, file_path in datasets.items():
-        conn.execute(f"""
-        CREATE TABLE {name} AS 
-        SELECT * FROM read_csv_auto('{file_path}');
-        """)
+    for name, df in datasets.items():
+        conn.execute(f"CREATE TABLE {name} AS SELECT * FROM df")  # Crée chaque table dans DuckDB
     return conn
 
 conn = load_database()
@@ -41,26 +34,27 @@ def validate_query(level, query):
 
 # Créer une barre latérale pour naviguer entre les niveaux
 st.sidebar.title("SQL Injection Challenge")
-options = {
-    "Niveau 1": 1,
-    "Niveau 2": 2,
-    "Niveau 3": 3,
-    "Niveau 4": 4,
-    "Niveau 5": 5
-}
 
-# Vérification des niveaux débloqués
-available_levels = [level for level in options.values() if level <= st.session_state.level_passed + 1]
+# Initialisation du niveau débloqué
+if 'unlocked_levels' not in st.session_state:
+    st.session_state.unlocked_levels = {1: True}  # Niveau 1 débloqué par défaut
 
-# Empêcher l'accès aux niveaux non débloqués
-choice = st.sidebar.radio("Choisissez un niveau", list(options.keys()), index=available_levels[0] - 1)
+# Affichage des niveaux disponibles
+available_levels = {1: "Niveau 1", 2: "Niveau 2", 3: "Niveau 3", 4: "Niveau 4", 5: "Niveau 5"}
 
-# Déterminer le niveau basé sur la sélection
-level = options[choice]
+# Vérifier quel niveau est débloqué
+unlocked_levels = {level: available_levels[level] for level in st.session_state.unlocked_levels if st.session_state.unlocked_levels[level]}
 
-# Afficher le contenu en fonction du niveau choisi
-st.title(f"SQL Injection Challenge - {choice}")
+# Choisir un niveau
+choice = st.sidebar.radio("Choisissez un niveau", list(unlocked_levels.values()))
 
+# Récupérer le niveau choisi
+level = [k for k, v in available_levels.items() if v == choice][0]
+
+# Afficher le niveau choisi
+st.title(f"SQL Injection Challenge - {available_levels[level]}")
+
+# Informations sur le niveau
 if level == 1:
     st.subheader("Niveau 1 : Pas de filtre")
 elif level == 2:
@@ -85,15 +79,15 @@ if st.button("Soumettre la requête"):
         else:
             try:
                 # Exécuter la requête SQL sur la base DuckDB
-                result = conn.execute(query).fetchdf()
+                result = pd.read_sql_query(query, conn)
                 if result.empty:
                     st.warning("Aucun résultat trouvé.")
                 else:
                     st.success("Requête exécutée avec succès.")
                     st.write(result)
-                    # Débloquer le niveau suivant après avoir réussi le niveau actuel
-                    if level > st.session_state.level_passed:
-                        st.session_state.level_passed = level
+                    # Si la requête est réussie pour le niveau actuel, débloquer le niveau suivant
+                    if level < 5 and level not in st.session_state.unlocked_levels:
+                        st.session_state.unlocked_levels[level + 1] = True
             except Exception as e:
                 st.error(f"Erreur lors de l'exécution de la requête : {e}")
 
