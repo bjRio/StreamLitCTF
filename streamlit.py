@@ -57,7 +57,37 @@ st.title(f"SQL Injection Challenge - {available_levels[level]}")
 
 # Informations sur le niveau
 if level == 1:
-    st.subheader("Niveau 1 : Pas de filtre")
+    st.subheader("Niveau 1 : Page d'authentification")
+
+    # Formulaire d'authentification
+    username = st.text_input("Nom d'utilisateur")
+    password = st.text_input("Mot de passe", type="password")
+
+    if st.button("Se connecter"):
+        if username and password:
+            query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
+            if not validate_query(level, query):
+                st.error("Requête bloquée par les filtres de ce niveau.")
+            else:
+                try:
+                    # Exécute la requête SQL sur la base
+                    result = pd.read_sql_query(query, conn)
+                    if result.empty:
+                        st.error("Identifiants incorrects.")
+                    else:
+                        st.success("Connexion réussie.")
+                        st.write(result)  # Affiche les résultats
+                        
+                        # Vérifie si l'utilisateur connecté est l'admin
+                        if "admin" in result["username"].values:
+                            st.success("Vous avez débloqué le niveau 2 !")
+                            st.session_state.unlocked_levels[2] = True
+                            st.session_state["refresh"] = True  # Actualisation
+                except Exception as e:
+                    st.error(f"Erreur lors de l'exécution de la requête : {e}")
+        else:
+            st.error("Veuillez entrer un nom d'utilisateur et un mot de passe.")
+
 elif level == 2:
     st.subheader("Niveau 2 : Filtres basiques")
 elif level == 3:
