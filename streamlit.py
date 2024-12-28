@@ -79,7 +79,7 @@ if level == 1:
                         st.write(result)  # Affiche les résultats
                         
                         # Vérifie si l'utilisateur connecté est l'admin
-                        if "admin" in result["username"].values:
+                        if "fpQQSE1eZQ" in result["username"].values:
                             st.success("Vous avez débloqué le niveau 2 !")
                             st.session_state.unlocked_levels[2] = True
                             st.session_state["refresh"] = True  # Actualisation
